@@ -19,13 +19,26 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final deepArController = DeepArController();
   bool isRecording = false;
+  bool _isInitialized = false; // Flag to track initialization
+  Future<void>? _initializationFuture; // Store the initialization Future
 
   Future<void> initializeController() async {
-    await deepArController.initialize(
+    if (_isInitialized) return; // Return early if already initialized
+    if (_initializationFuture != null) return _initializationFuture;
+
+    _initializationFuture = deepArController.initialize(
       androidLicenseKey: licenseKey,
       iosLicenseKey: '',
       resolution: Resolution.high,
     );
+    await _initializationFuture;
+    _isInitialized = true; // Mark as initialized
+  }
+
+  @override
+  void dispose() {
+    deepArController; // Dispose of the controller
+    super.dispose();
   }
 
   Future<bool> checkAndRequestPermissions({required bool skipIfExists}) async {
@@ -83,15 +96,15 @@ class _HomePageState extends State<HomePage> {
       // Save the image to local storage
       final directory = await getApplicationDocumentsDirectory();
       final imagePath =
-          '${directory.path}/pixora_${DateTime.now().millisecondsSinceEpoch}.png';
+          '${directory.path}/FilterApp_${DateTime.now().millisecondsSinceEpoch}.png';
       File savedImageFile = File(imagePath);
       await savedImageFile.writeAsBytes(imageData);
 
       // Save to gallery
       final result = await SaverGallery.saveFile(
         filePath: imagePath,
-        fileName: 'pixora_${DateTime.now().millisecondsSinceEpoch}.png',
-        androidRelativePath: "Pictures/Pixora",
+        fileName: 'FilterApp_${DateTime.now().millisecondsSinceEpoch}.png',
+        androidRelativePath: "Pictures/FilterApp",
         skipIfExists: false,
       );
 
@@ -133,13 +146,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> stopRecordingAndSave() async {
     try {
-      final String? videoPath =
-          (await deepArController.stopVideoRecording()) as String?;
+      // Stop recording and get the video file
+      final File? videoFile = await deepArController.stopVideoRecording();
       setState(() {
         isRecording = false;
       });
 
-      if (videoPath != null) {
+      if (videoFile != null) {
         // Request permissions before saving
         final hasPermission =
             await checkAndRequestPermissions(skipIfExists: false);
@@ -150,12 +163,15 @@ class _HomePageState extends State<HomePage> {
           return;
         }
 
+        // Define the file name and path
         final String fileName =
-            "pixora_video_${DateTime.now().millisecondsSinceEpoch}.mp4";
+            "FilterApp_video_${DateTime.now().millisecondsSinceEpoch}.mp4";
+
+        // Save to gallery
         final result = await SaverGallery.saveFile(
-          androidRelativePath: "Movies/Pixora",
+          androidRelativePath: "Movies/FilterApp",
           skipIfExists: false,
-          filePath: videoPath,
+          filePath: videoFile.path, // Use the file path from the File object
           fileName: fileName,
         );
 
